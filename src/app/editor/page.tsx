@@ -6,12 +6,27 @@ import { useCircuitStore } from '@/lib/store';
 import { validateCircuit, type Circuit } from '@/lib/schema';
 import BreadboardSVG from '@/components/breadboard/BreadboardSVG';
 import { ComponentSprite } from '@/components/parts/ComponentSprite';
+import { LibraryPanel } from '@/components/panels/LibraryPanel';
+import { autoPlaceComponents, placeSingleComponent } from '@/lib/placement';
+import { pointToCoordinate } from '@/lib/breadboard';
+import { createComponentFromTemplate, generateRefDesignator, getPartById, type PartTemplate } from '@/lib/parts-library';
 import ledCircuitData from '@/data/seeds/led-circuit.json';
 import blinkerCircuitData from '@/data/seeds/555-blinker.json';
 
 function EditorContent() {
   const searchParams = useSearchParams();
-  const { circuit, setCircuit, generateBOM, runDRC } = useCircuitStore();
+  const { 
+    circuit, 
+    setCircuit, 
+    generateBOM, 
+    runDRC, 
+    placements, 
+    setPlacement, 
+    addComponent,
+    pushToHistory,
+    selectedComponent,
+    selectComponent 
+  } = useCircuitStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +127,78 @@ function EditorContent() {
     loadExampleCircuit();
   }, [searchParams, setCircuit, generateBOM, runDRC]);
 
+  // Auto-place components when circuit is loaded
+  useEffect(() => {
+    if (circuit && circuit.components.length > 0 && placements.length === 0) {
+      const newPlacements = autoPlaceComponents(circuit.components, circuit.board);
+      setPlacement(newPlacements);
+    }
+  }, [circuit, placements.length, setPlacement]);
+
+  // Auto-route handler
+  const handleAutoRoute = async () => {
+    if (!circuit) return;
+    
+    // Re-run auto-placement
+    const newPlacements = autoPlaceComponents(circuit.components, circuit.board);
+    setPlacement(newPlacements);
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    
+    try {
+      const data = JSON.parse(event.dataTransfer.getData('application/json'));
+      if (data.type === 'component-template') {
+        const template: PartTemplate = data.template;
+        
+        if (!circuit) return;
+        
+        // Generate unique ID and reference designator
+        const componentId = `${template.id}-${Date.now()}`;
+        const existingRefs = circuit.components.map(c => c.ref);
+        const refDesignator = generateRefDesignator(template.component.kind, existingRefs);
+        
+        // Create component instance
+        const newComponent = createComponentFromTemplate(template, componentId, refDesignator);
+        
+        // Get drop position on breadboard
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        // Convert to breadboard coordinates (simplified)
+        const coord = pointToCoordinate({ x, y }, circuit.board);
+        
+        // Add component and place it
+        pushToHistory();
+        addComponent(newComponent);
+        
+        // Try to place at dropped position
+        const newPlacement = placeSingleComponent(
+          newComponent,
+          circuit.board,
+          placements,
+          coord.row,
+          coord.column,
+          coord.section
+        );
+        
+        if (newPlacement) {
+          setPlacement([...placements, newPlacement]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to handle drop:', err);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -161,7 +248,11 @@ function EditorContent() {
               {circuit.name}
             </h1>
             <div className="flex items-center gap-2">
-              <button className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+              <button 
+                onClick={handleAutoRoute}
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                title="Auto-place all components"
+              >
                 Auto Route
               </button>
               <button className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700">
@@ -179,8 +270,14 @@ function EditorContent() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 p-6">
-        <div className="max-w-6xl mx-auto">
+      <div className="flex-1 flex gap-6 p-6">
+        {/* Left Panel - Parts Library */}
+        <div className="w-80 flex-shrink-0">
+          <LibraryPanel className="h-full" />
+        </div>
+
+        {/* Center - Breadboard */}
+        <div className="flex-1">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Breadboard View</h2>
@@ -192,86 +289,113 @@ function EditorContent() {
             </div>
             
             {/* Breadboard SVG Container */}
-            <div className="bg-gray-100 rounded-lg p-4" style={{ minHeight: '400px' }}>
+            <div 
+              className="bg-gray-100 rounded-lg p-4 relative" 
+              style={{ minHeight: '400px' }}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              <div className="absolute top-2 left-2 text-xs text-gray-500 bg-white px-2 py-1 rounded z-10">
+                💡 Drag components from library or click Auto Route
+              </div>
+              
               <BreadboardSVG
                 config={circuit.board}
                 showGrid={true}
                 showLabels={true}
                 className="w-full h-full"
+                onCoordinateClick={(coord) => {
+                  console.log('Clicked coordinate:', coord);
+                  // Could be used for manual component placement
+                }}
               >
-                {/* Render components when placement is available */}
-                {circuit.components.map((component) => {
-                  // For now, just render a simple placeholder
-                  // In full implementation, this would use actual placement data
+                {/* Render placed components */}
+                {placements.map((placement) => {
+                  const component = circuit.components.find(c => c.id === placement.componentId);
+                  if (!component) return null;
+                  
                   return (
-                    <g key={component.id}>
-                      <text
-                        x={50}
-                        y={50}
-                        fontSize="12"
-                        fill="#666"
-                        textAnchor="middle"
-                      >
-                        {component.ref}: {component.value || component.kind}
-                      </text>
-                    </g>
+                    <ComponentSprite
+                      key={component.id}
+                      component={component}
+                      placement={placement}
+                      config={circuit.board}
+                      isSelected={selectedComponent === component.id}
+                      onSelect={() => selectComponent(component.id)}
+                    />
                   );
                 })}
               </BreadboardSVG>
             </div>
           </div>
-
+        </div>
+        
+        {/* Right Panel - Circuit Info */}
+        <div className="w-80 flex-shrink-0 space-y-6">
           {/* Component List */}
-          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Components</h3>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900">Components ({circuit.components.length})</h3>
             </div>
-            <div className="p-6">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {circuit.components.map((component) => (
-                  <div
-                    key={component.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{component.ref}</h4>
-                        <p className="text-sm text-gray-600 capitalize">{component.kind}</p>
-                        {component.value && (
-                          <p className="text-sm text-blue-600">{component.value}</p>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {component.pins.length} pins
+            <div className="p-4 max-h-60 overflow-y-auto custom-scrollbar">
+              <div className="space-y-2">
+                {circuit.components.map((component) => {
+                  const isPlaced = placements.some(p => p.componentId === component.id);
+                  return (
+                    <div
+                      key={component.id}
+                      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                        selectedComponent === component.id 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                      onClick={() => selectComponent(component.id)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-medium text-gray-900 text-sm">{component.ref}</h4>
+                          <p className="text-xs text-gray-600 capitalize">{component.kind}</p>
+                          {component.value && (
+                            <p className="text-xs text-blue-600">{component.value}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-xs px-2 py-1 rounded ${
+                            isPlaced ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {isPlaced ? 'Placed' : 'Unplaced'}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{component.pins.length} pins</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
 
           {/* Nets List */}
-          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Nets</h3>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900">Nets ({circuit.nets.length})</h3>
             </div>
-            <div className="p-6">
-              <div className="space-y-3">
+            <div className="p-4 max-h-40 overflow-y-auto custom-scrollbar">
+              <div className="space-y-2">
                 {circuit.nets.map((net) => (
                   <div
                     key={net.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-2 bg-gray-50 rounded"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <div 
-                        className="w-4 h-4 rounded"
+                        className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: net.color || '#333' }}
                       />
-                      <span className="font-medium text-gray-900">{net.name}</span>
+                      <span className="text-sm font-medium text-gray-900">{net.name}</span>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      {net.nodes.length} connection{net.nodes.length !== 1 ? 's' : ''}
+                    <div className="text-xs text-gray-600">
+                      {net.nodes.length} node{net.nodes.length !== 1 ? 's' : ''}
                     </div>
                   </div>
                 ))}
