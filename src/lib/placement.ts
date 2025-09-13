@@ -179,6 +179,27 @@ export class PlacementEngine {
     this.occupancyMap.clear();
   }
 
+  repositionComponent(
+    component: Component, 
+    targetRow: number,
+    targetColumn: number,
+    targetSection?: string,
+    options: PlacementOptions = {}
+  ): PlacementResult | null {
+    // First remove the component from its current position
+    this.removeComponent(component.id);
+    
+    // Try to place it at the new position
+    const placement = this.placeComponent(
+      component, 
+      { ...options, preferredSection: targetSection as any },
+      targetRow,
+      targetColumn
+    );
+    
+    return placement;
+  }
+
   placeComponents(components: Component[]): PlacementResult[] {
     const results: PlacementResult[] = [];
     

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useCircuitStore } from '@/lib/store';
-import { validateCircuit, type Circuit } from '@/lib/schema';
+import { validateCircuit, type Circuit, type Component } from '@/lib/schema';
 import BreadboardSVG from '@/components/breadboard/BreadboardSVG';
 import { ComponentSprite } from '@/components/parts/ComponentSprite';
 import { LibraryPanel } from '@/components/panels/LibraryPanel';
@@ -15,20 +15,22 @@ import blinkerCircuitData from '@/data/seeds/555-blinker.json';
 
 function EditorContent() {
   const searchParams = useSearchParams();
-  const { 
-    circuit, 
-    setCircuit, 
-    generateBOM, 
-    runDRC, 
-    placements, 
-    setPlacement, 
-    addComponent,
-    pushToHistory,
+  const {
+    circuit,
     selectedComponent,
-    selectComponent 
+    placements,
+    setCircuit,
+    setPlacement,
+    addComponent,
+    selectComponent,
+    moveComponent,
+    pushToHistory,
+    generateBOM,
+    runDRC
   } = useCircuitStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [moveMode, setMoveMode] = useState<string | null>(null); // componentId being moved
 
   useEffect(() => {
     const loadExampleCircuit = async () => {
@@ -129,8 +131,16 @@ function EditorContent() {
 
   // Auto-place components when circuit is loaded
   useEffect(() => {
+    console.log('🔄 Auto-placement useEffect:', { 
+      hasCircuit: !!circuit, 
+      componentCount: circuit?.components.length || 0, 
+      placementCount: placements.length 
+    });
+    
     if (circuit && circuit.components.length > 0 && placements.length === 0) {
+      console.log('🔄 Running auto-placement for components:', circuit.components);
       const newPlacements = autoPlaceComponents(circuit.components, circuit.board);
+      console.log('🔄 Generated placements:', newPlacements);
       setPlacement(newPlacements);
     }
   }, [circuit, placements.length, setPlacement]);
@@ -144,6 +154,31 @@ function EditorContent() {
     setPlacement(newPlacements);
   };
 
+  // Handle entering move mode
+  const handleStartMove = (componentId: string) => {
+    console.log('🟨 handleStartMove called:', componentId);
+    setMoveMode(componentId);
+    selectComponent(componentId);
+  };
+
+  // Handle canceling move mode
+  const handleCancelMove = () => {
+    setMoveMode(null);
+  };
+
+  // Handle component placement/move
+  const handleBreadboardClick = (coord: { row: number; column: number; section: string }) => {
+    console.log('🟦 handleBreadboardClick called:', { coord, moveMode });
+    if (moveMode && circuit) {
+      console.log('🟩 Moving component:', moveMode, 'to position:', coord);
+      // Move the component to the clicked position
+      pushToHistory();
+      moveComponent(moveMode, coord.row, coord.column, coord.section);
+      setMoveMode(null);
+    }
+  };
+
+
   // Drag and drop handlers
   const handleDragOver = (event: React.DragEvent) => {
     event.preventDefault();
@@ -155,7 +190,9 @@ function EditorContent() {
     
     try {
       const data = JSON.parse(event.dataTransfer.getData('application/json'));
+      
       if (data.type === 'component-template') {
+        // Handle dropping a new component from library
         const template: PartTemplate = data.template;
         
         if (!circuit) return;
@@ -194,6 +231,7 @@ function EditorContent() {
           setPlacement([...placements, newPlacement]);
         }
       }
+      
     } catch (err) {
       console.error('Failed to handle drop:', err);
     }
@@ -295,19 +333,28 @@ function EditorContent() {
               onDragOver={handleDragOver}
               onDrop={handleDrop}
             >
-              <div className="absolute top-2 left-2 text-xs text-gray-500 bg-white px-2 py-1 rounded z-10">
-                💡 Drag components from library or click Auto Route
-              </div>
+              {moveMode ? (
+                <div className="absolute top-2 left-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded z-10 flex items-center gap-2">
+                  🔄 Click where you want to move the component
+                  <button 
+                    onClick={handleCancelMove}
+                    className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="absolute top-2 left-2 text-xs text-gray-500 bg-white px-2 py-1 rounded z-10">
+                  💡 Drag components from library or click Auto Route
+                </div>
+              )}
               
               <BreadboardSVG
                 config={circuit.board}
                 showGrid={true}
                 showLabels={true}
                 className="w-full h-full"
-                onCoordinateClick={(coord) => {
-                  console.log('Clicked coordinate:', coord);
-                  // Could be used for manual component placement
-                }}
+                onCoordinateClick={handleBreadboardClick}
               >
                 {/* Render placed components */}
                 {placements.map((placement) => {
@@ -332,6 +379,15 @@ function EditorContent() {
         
         {/* Right Panel - Circuit Info */}
         <div className="w-80 flex-shrink-0 space-y-6">
+          {/* Debug Info */}
+          <div className="bg-yellow-50 rounded-lg border border-yellow-200 p-3 text-xs">
+            <h4 className="font-semibold text-yellow-800">Debug Info</h4>
+            <p>Components: {circuit.components.length}</p>
+            <p>Placements: {placements.length}</p>
+            <p>Move Mode: {moveMode || 'None'}</p>
+            <p>Selected: {selectedComponent || 'None'}</p>
+          </div>
+
           {/* Component List */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="px-4 py-3 border-b border-gray-200">
@@ -344,28 +400,42 @@ function EditorContent() {
                   return (
                     <div
                       key={component.id}
-                      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                      className={`border rounded-lg p-3 transition-colors ${
                         selectedComponent === component.id 
                           ? 'border-blue-500 bg-blue-50' 
                           : 'border-gray-200 hover:bg-gray-50'
                       }`}
-                      onClick={() => selectComponent(component.id)}
                     >
                       <div className="flex items-start justify-between">
-                        <div>
+                        <div 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => selectComponent(component.id)}
+                        >
                           <h4 className="font-medium text-gray-900 text-sm">{component.ref}</h4>
                           <p className="text-xs text-gray-600 capitalize">{component.kind}</p>
                           {component.value && (
                             <p className="text-xs text-blue-600">{component.value}</p>
                           )}
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex flex-col items-end gap-1">
                           <div className={`text-xs px-2 py-1 rounded ${
                             isPlaced ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                           }`}>
                             {isPlaced ? 'Placed' : 'Unplaced'}
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">{component.pins.length} pins</p>
+                          <p className="text-xs text-gray-500">{component.pins.length} pins</p>
+                          {isPlaced && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartMove(component.id);
+                              }}
+                              className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                              disabled={moveMode === component.id}
+                            >
+                              {moveMode === component.id ? 'Moving...' : 'Move'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

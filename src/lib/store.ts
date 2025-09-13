@@ -66,6 +66,7 @@ export interface CircuitActions {
   updateComponent: (id: string, component: Partial<Component>) => void;
   removeComponent: (id: string) => void;
   selectComponent: (id: string | null) => void;
+  moveComponent: (componentId: string, targetRow: number, targetColumn: number, targetSection?: string) => void;
   
   // Net management
   addNet: (net: Net) => void;
@@ -206,6 +207,60 @@ export const useCircuitStore = create<CircuitState & CircuitActions>()(
       selectComponent: (id) => set((state) => {
         state.selectedComponent = id;
         state.selectedNet = null; // Clear net selection
+      }),
+
+      moveComponent: (componentId, targetRow, targetColumn, targetSection) => set((state) => {
+        console.log('moveComponent called:', { componentId, targetRow, targetColumn, targetSection });
+        if (!state.circuit) {
+          console.log('No circuit found');
+          return;
+        }
+        
+        const component = state.circuit.components.find(c => c.id === componentId);
+        if (!component) {
+          console.log('Component not found:', componentId);
+          return;
+        }
+        
+        console.log('Found component:', component);
+        
+        // Remove the current placement
+        const oldPlacementCount = state.placements.length;
+        state.placements = state.placements.filter(p => p.componentId !== componentId);
+        console.log('Removed old placement, count changed from', oldPlacementCount, 'to', state.placements.length);
+        
+        // Calculate appropriate span based on component type
+        let span = 1;
+        switch (component.kind) {
+          case 'resistor':
+          case 'led':
+            span = 2;
+            break;
+          case 'ic':
+            span = Math.max(4, Math.ceil(component.pins.length / 2));
+            break;
+          case 'capacitor':
+            span = component.footprint === 'radial' ? 1 : 2;
+            break;
+          default:
+            span = 1;
+        }
+        
+        // Try to create a new placement at the target position
+        const newPlacement: PlacementResult = {
+          componentId: componentId,
+          position: {
+            row: targetRow,
+            column: targetColumn,
+            span: span
+          },
+          rotation: 0,
+          conflicts: []
+        };
+        
+        console.log('Creating new placement:', newPlacement);
+        state.placements.push(newPlacement);
+        console.log('New placements count:', state.placements.length);
       }),
 
       // Net management

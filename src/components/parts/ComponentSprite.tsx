@@ -7,6 +7,9 @@ import { LEDSprite } from './LEDSprite';
 import { ICSprite } from './ICSprite';
 import { JumperWireSprite } from './JumperWireSprite';
 
+// For now, we'll use a simpler approach without drag and drop
+// Components can be selected and then placed by clicking on the breadboard
+
 interface ComponentSpriteProps {
   component: Component;
   placement?: PlacementResult;
