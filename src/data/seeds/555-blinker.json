@@ -1,0 +1,197 @@
+{
+  "id": "555-led-blinker",
+  "name": "555 Timer LED Blinker",
+  "description": "Classic 555 timer astable circuit that blinks an LED at approximately 1Hz",
+  "components": [
+    {
+      "id": "ic1",
+      "ref": "U1",
+      "kind": "ic",
+      "value": "NE555",
+      "footprint": "dip",
+      "pins": [
+        { "id": "ic1-pin1", "name": "GND", "type": "ground" },
+        { "id": "ic1-pin2", "name": "TRIG", "type": "io" },
+        { "id": "ic1-pin3", "name": "OUT", "type": "io" },
+        { "id": "ic1-pin4", "name": "RESET", "type": "io" },
+        { "id": "ic1-pin5", "name": "CTRL", "type": "io" },
+        { "id": "ic1-pin6", "name": "THR", "type": "io" },
+        { "id": "ic1-pin7", "name": "DIS", "type": "io" },
+        { "id": "ic1-pin8", "name": "VCC", "type": "power" }
+      ],
+      "pinMap": {
+        "GND": "1",
+        "TRIG": "2", 
+        "OUT": "3",
+        "RESET": "4",
+        "CTRL": "5",
+        "THR": "6",
+        "DIS": "7",
+        "VCC": "8"
+      },
+      "orientation": "north",
+      "properties": {
+        "package": "DIP-8",
+        "description": "555 Timer IC"
+      }
+    },
+    {
+      "id": "r1",
+      "ref": "R1",
+      "kind": "resistor", 
+      "value": "1kΩ",
+      "footprint": "axial",
+      "pins": [
+        { "id": "r1-pin1", "name": "pin1", "type": "io" },
+        { "id": "r1-pin2", "name": "pin2", "type": "io" }
+      ],
+      "pinMap": { "pin1": "1", "pin2": "2" },
+      "orientation": "north",
+      "properties": { "tolerance": "5%", "power": "0.25W" }
+    },
+    {
+      "id": "r2", 
+      "ref": "R2",
+      "kind": "resistor",
+      "value": "470kΩ",
+      "footprint": "axial",
+      "pins": [
+        { "id": "r2-pin1", "name": "pin1", "type": "io" },
+        { "id": "r2-pin2", "name": "pin2", "type": "io" }
+      ],
+      "pinMap": { "pin1": "1", "pin2": "2" },
+      "orientation": "north",
+      "properties": { "tolerance": "5%", "power": "0.25W" }
+    },
+    {
+      "id": "r3",
+      "ref": "R3", 
+      "kind": "resistor",
+      "value": "220Ω",
+      "footprint": "axial",
+      "pins": [
+        { "id": "r3-pin1", "name": "pin1", "type": "io" },
+        { "id": "r3-pin2", "name": "pin2", "type": "io" }
+      ],
+      "pinMap": { "pin1": "1", "pin2": "2" },
+      "orientation": "north",
+      "properties": { "tolerance": "5%", "power": "0.25W", "description": "LED current limiting resistor" }
+    },
+    {
+      "id": "c1",
+      "ref": "C1",
+      "kind": "capacitor",
+      "value": "10µF",
+      "footprint": "radial",
+      "pins": [
+        { "id": "c1-pos", "name": "positive", "type": "io" },
+        { "id": "c1-neg", "name": "negative", "type": "io" }
+      ],
+      "pinMap": { "positive": "1", "negative": "2" },
+      "orientation": "north",
+      "properties": { "voltage": "25V", "type": "electrolytic" }
+    },
+    {
+      "id": "led1",
+      "ref": "LED1",
+      "kind": "led",
+      "value": "red",
+      "footprint": "led5mm",
+      "pins": [
+        { "id": "led1-anode", "name": "anode", "type": "io" },
+        { "id": "led1-cathode", "name": "cathode", "type": "io" }
+      ],
+      "pinMap": { "anode": "1", "cathode": "2" },
+      "orientation": "north",
+      "properties": { "color": "red", "voltage_drop": "2.0V", "current": "20mA" }
+    },
+    {
+      "id": "vcc",
+      "ref": "VCC",
+      "kind": "power",
+      "value": "9V",
+      "footprint": "power", 
+      "pins": [
+        { "id": "vcc-pos", "name": "positive", "type": "power" },
+        { "id": "vcc-neg", "name": "negative", "type": "ground" }
+      ],
+      "pinMap": { "positive": "1", "negative": "2" },
+      "orientation": "north",
+      "properties": { "voltage": "9V", "type": "DC battery" }
+    }
+  ],
+  "nets": [
+    {
+      "id": "vcc-net",
+      "name": "VCC",
+      "nodes": [
+        { "compId": "vcc", "pin": "positive" },
+        { "compId": "ic1", "pin": "VCC" },
+        { "compId": "ic1", "pin": "RESET" },
+        { "compId": "r1", "pin": "pin1" }
+      ],
+      "color": "#ff0000"
+    },
+    {
+      "id": "gnd-net", 
+      "name": "GND",
+      "nodes": [
+        { "compId": "vcc", "pin": "negative" },
+        { "compId": "ic1", "pin": "GND" },
+        { "compId": "c1", "pin": "negative" },
+        { "compId": "led1", "pin": "cathode" }
+      ],
+      "color": "#000000"
+    },
+    {
+      "id": "timing-net",
+      "name": "TIMING",
+      "nodes": [
+        { "compId": "r1", "pin": "pin2" },
+        { "compId": "r2", "pin": "pin1" },
+        { "compId": "ic1", "pin": "DIS" }
+      ],
+      "color": "#0066cc"
+    },
+    {
+      "id": "threshold-net",
+      "name": "THRESHOLD", 
+      "nodes": [
+        { "compId": "r2", "pin": "pin2" },
+        { "compId": "ic1", "pin": "THR" },
+        { "compId": "ic1", "pin": "TRIG" },
+        { "compId": "c1", "pin": "positive" }
+      ],
+      "color": "#00aa00"
+    },
+    {
+      "id": "output-net",
+      "name": "OUTPUT",
+      "nodes": [
+        { "compId": "ic1", "pin": "OUT" },
+        { "compId": "r3", "pin": "pin1" }
+      ],
+      "color": "#ff6600"
+    },
+    {
+      "id": "led-net",
+      "name": "LED_ANODE",
+      "nodes": [
+        { "compId": "r3", "pin": "pin2" },
+        { "compId": "led1", "pin": "anode" }
+      ],
+      "color": "#8800cc"
+    }
+  ],
+  "board": {
+    "kind": "full",
+    "columns": 63,
+    "rows": 30,
+    "powerRails": true
+  },
+  "metadata": {
+    "created": "2025-09-13T00:00:00.000Z",
+    "modified": "2025-09-13T00:00:00.000Z", 
+    "version": "1.0"
+  }
+}

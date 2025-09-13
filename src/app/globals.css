@@ -1,0 +1,241 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 210 40% 96%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 212.7 26.8% 83.9%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+}
+
+/* Custom breadboard styles */
+.breadboard-container {
+  @apply bg-gray-100 border border-gray-300 rounded-lg shadow-sm;
+}
+
+.breadboard-container svg {
+  @apply w-full h-full;
+}
+
+/* Component selection and highlighting */
+.component-selected {
+  filter: drop-shadow(0 0 6px rgba(255, 165, 0, 0.8));
+}
+
+.component-highlighted {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 0, 0.6));
+}
+
+/* Panel styles */
+.panel {
+  @apply bg-white border border-gray-200 rounded-lg shadow-sm;
+}
+
+.panel-header {
+  @apply px-4 py-2 border-b border-gray-200 bg-gray-50 rounded-t-lg;
+}
+
+.panel-content {
+  @apply p-4;
+}
+
+/* Parts library grid */
+.parts-grid {
+  @apply grid gap-2;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.part-card {
+  @apply p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors;
+}
+
+.part-card:hover {
+  @apply border-blue-300 bg-blue-50;
+}
+
+.part-card.selected {
+  @apply border-blue-500 bg-blue-100;
+}
+
+/* Assembly step styles */
+.step-container {
+  @apply space-y-4;
+}
+
+.step-item {
+  @apply border border-gray-200 rounded-lg p-4 bg-white;
+}
+
+.step-item.active {
+  @apply border-blue-500 bg-blue-50;
+}
+
+.step-item.completed {
+  @apply border-green-500 bg-green-50;
+}
+
+/* DRC styles */
+.drc-error {
+  @apply text-red-600 bg-red-50 border border-red-200 rounded p-2;
+}
+
+.drc-warning {
+  @apply text-yellow-600 bg-yellow-50 border border-yellow-200 rounded p-2;
+}
+
+.drc-info {
+  @apply text-blue-600 bg-blue-50 border border-blue-200 rounded p-2;
+}
+
+/* Toolbar styles */
+.toolbar {
+  @apply flex items-center space-x-2 p-2 bg-gray-100 border-b border-gray-200;
+}
+
+.toolbar-group {
+  @apply flex items-center space-x-1 px-2 border-r border-gray-300 last:border-r-0;
+}
+
+.toolbar-button {
+  @apply p-2 rounded hover:bg-gray-200 transition-colors;
+}
+
+.toolbar-button.active {
+  @apply bg-blue-500 text-white;
+}
+
+/* BOM table styles */
+.bom-table {
+  @apply w-full border-collapse border border-gray-300;
+}
+
+.bom-table th,
+.bom-table td {
+  @apply border border-gray-300 px-3 py-2 text-left;
+}
+
+.bom-table th {
+  @apply bg-gray-100 font-medium;
+}
+
+.bom-table tr:nth-child(even) {
+  @apply bg-gray-50;
+}
+
+/* Scrollbar styles */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 rounded;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply inline-block animate-spin rounded-full border-2 border-solid border-current border-r-transparent;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Utility animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px currentColor);
+  }
+  50% {
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-break-after {
+    page-break-after: always;
+  }
+  
+  .print-break-before {
+    page-break-before: always;
+  }
+}
